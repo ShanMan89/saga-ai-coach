@@ -1,0 +1,35 @@
+
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('firebaseAuthToken'); 
+  const { pathname } = request.nextUrl;
+
+  // Allow access to auth pages even if there is a token (e.g., to sign out)
+  if (pathname.startsWith('/auth')) {
+    return NextResponse.next();
+  }
+  
+  // If there's no token and the user is trying to access a protected route, redirect to sign-in
+  if (!token && !pathname.startsWith('/auth')) {
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
+  }
+
+  return NextResponse.next();
+}
+
+// See "Matching Paths" below to learn more
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};
+
