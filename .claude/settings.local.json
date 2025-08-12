@@ -25,7 +25,13 @@
       "Bash(mv:*)",
       "Bash(\"C:\\Program Files\\nodejs\\node.exe\" \"node_modules\\next\\dist\\bin\\next\" build)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)"
     ],
     "deny": []
   }
