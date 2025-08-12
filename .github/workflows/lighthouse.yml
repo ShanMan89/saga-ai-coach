@@ -1,10 +1,8 @@
 name: Lighthouse Performance Audit
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # Temporarily disable until app is deployed
+  workflow_dispatch:
   schedule:
     # Run weekly performance audits
     - cron: '0 8 * * 1'
