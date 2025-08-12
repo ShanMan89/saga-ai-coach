@@ -1,0 +1,49 @@
+name: Lighthouse Performance Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly performance audits
+    - cron: '0 8 * * 1'
+
+jobs:
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: sleep 60
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            ${{ secrets.NEXT_PUBLIC_APP_URL_PROD }}
+            ${{ secrets.NEXT_PUBLIC_APP_URL_PROD }}/auth/signin
+            ${{ secrets.NEXT_PUBLIC_APP_URL_PROD }}/dashboard
+          configPath: '.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Comment PR with Lighthouse results
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## ⚡ Lighthouse Performance Report
+            
+            Lighthouse audit completed! Check the detailed report in the workflow artifacts.
+            
+            Key metrics to review:
+            - Performance Score
+            - Accessibility Score  
+            - Best Practices Score
+            - SEO Score
