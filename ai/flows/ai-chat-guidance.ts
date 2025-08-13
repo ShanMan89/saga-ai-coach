@@ -1,143 +1,157 @@
-'use server';
-
 /**
- * @fileOverview An AI chat agent that provides personalized relationship coaching and suggests SOS sessions.
- *
- * - aiChat - A function that handles the AI chat process.
- * - AIChatInput - The input type for the aiChat function.
- * - AIChatOutput - The return type for the aiChat function.
+ * AI Chat Guidance Flow
+ * Provides personalized relationship coaching through AI-powered conversations
  */
 
-import {ai, AI_MODELS} from '@/ai/genkit';
-import {z} from 'zod';
-import { getAvailability } from '@/services/firestore-admin';
-import type { UserProfile, Message } from '@/lib/types';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai';
+import { AI_MODELS } from '../genkit';
 
-// Defines a tool for the AI to check for available SOS session slots.
-const getAvailabilityTool = ai.defineTool(
-  {
-    name: 'getAvailability',
-    description: 'Returns available time slots for an SOS session with a coach. Only use this if the user is in high distress or explicitly asks for a session.',
-    outputSchema: z.array(z.string()),
-  },
-  async () => {
-    // Calls the admin Firestore service to get the schedule.
-    return await getAvailability();
-  }
-);
-
-// Defines the schema for the AI chat function's input.
-const AIChatInputSchema = z.object({
-  message: z.string().describe('The user message.'),
-  userProfile: z.custom<UserProfile>().describe('The profile of the user sending the message.'),
-  previousMessages: z.array(z.custom<Message>()).describe("The last 10 messages in the conversation history."),
-});
-export type AIChatInput = z.infer<typeof AIChatInputSchema>;
-
-// Defines the schema for the AI chat function's output.
-const AIChatOutputSchema = z.object({
-    response: z.string().describe('Supportive relationship coaching response.'),
-    suggestSOSText: z.boolean().describe('Whether the AI suggests an SOS session.'),
-    availableSlots: z.array(z.string()).optional().describe('Available time slots for SOS session, if suggested.'),
-    tone: z.enum(['supportive', 'encouraging', 'gentle', 'constructive']),
-    actionItems: z.array(z.string()).optional().describe('Suggested next steps'),
-    resources: z.array(z.object({
-        title: z.string(),
-        type: z.enum(['article', 'exercise', 'technique']),
-        description: z.string()
-    })).optional()
-});
-export type AIChatOutput = z.infer<typeof AIChatOutputSchema>;
-
-// Main function to handle AI chat requests.
-export async function aiChat(input: AIChatInput): Promise<AIChatOutput> {
-  return aiChatFlow(input);
+// Types for the flow
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
-// Defines the Genkit flow for the AI chat logic.
-const aiChatFlow = ai.defineFlow(
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  subscriptionTier: 'Explorer' | 'Growth' | 'Transformation';
+  relationshipStatus?: string;
+  goals?: string[];
+  focusAreas?: string[];
+}
+
+export interface ChatGuidanceInput {
+  message: string;
+  userProfile: UserProfile;
+  previousMessages: Message[];
+  context?: string;
+}
+
+export interface ChatGuidanceOutput {
+  response: string;
+  suggestions: string[];
+  resources: Array<{
+    title: string;
+    description: string;
+    type: 'article' | 'exercise' | 'tool';
+  }>;
+}
+
+// Main AI Chat Guidance Flow
+export const aiChatGuidanceFlow = defineFlow(
   {
-    name: 'aiChatFlow',
-    actionType: 'flow',
-    inputSchema: AIChatInputSchema,
-    outputSchema: AIChatOutputSchema,
+    name: 'aiChatGuidance',
+    inputSchema: {} as ChatGuidanceInput,
+    outputSchema: {} as ChatGuidanceOutput,
   },
-  async ({ message, userProfile, previousMessages }: AIChatInput) => {
-    
-    // System prompt providing context and instructions to the AI model.
-    const systemPrompt = `You are Sage, an empathetic relationship coach and therapist specializing in helping people build stronger, healthier relationships. Your approach combines evidence-based therapeutic techniques with practical relationship advice.
+  async (input: ChatGuidanceInput): Promise<ChatGuidanceOutput> => {
+    const { message, userProfile, previousMessages, context } = input;
 
-      Core principles:
-      - Be warm, supportive, and non-judgmental
-      - Focus on growth, communication, and emotional intelligence
-      - Provide actionable advice with specific techniques
-      - Validate emotions while encouraging positive change
-      - Draw from attachment theory, EFT, and cognitive behavioral approaches
+    // Build conversation history
+    const conversationHistory = previousMessages
+      .map((m: Message) => `${m.role}: ${m.content}`)
+      .join('\n');
+
+    // System prompt for relationship coaching
+    const systemPrompt = `You are Saga, an expert relationship coach and therapist. Your role is to provide compassionate, evidence-based guidance to help people build healthier relationships.
+
+    User Context:
+    - Name: ${userProfile.name}
+    - Subscription Tier: ${userProfile.subscriptionTier}
+    - Relationship Status: ${userProfile.relationshipStatus || 'Not specified'}
+    - Goals: ${userProfile.goals?.join(', ') || 'Building healthier relationships'}
+    - Focus Areas: ${userProfile.focusAreas?.join(', ') || 'General relationship wellness'}
+
+    Guidelines:
+    1. Be empathetic and non-judgmental
+    2. Provide actionable advice
+    3. Ask thoughtful follow-up questions
+    4. Reference evidence-based relationship principles
+    5. Tailor advice to their subscription tier and goals
+    6. Keep responses conversational but professional
+
+    Respond with JSON in this format:
+    {
+      "response": "Your main response to the user",
+      "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
+      "resources": [
+        {
+          "title": "Resource Title",
+          "description": "Brief description",
+          "type": "article|exercise|tool"
+        }
+      ]
+    }`;
+
+    // User prompt with conversation context
+    const userPrompt = `
+      Recent Conversation:
+      ${conversationHistory}
       
-      **Conversation Flow & SOS Sessions:**
-      1.  **Provide Insightful Advice:** Offer practical, actionable advice tailored to their situation.
-      2.  **Evaluate for Urgency (SOS Session):** Carefully assess the user's message for signs of high distress, crisis, or urgency.
-          - **Suggest an SOS session ONLY if:**
-            - The user expresses feeling overwhelmed, helpless, or in a crisis.
-            - The user explicitly asks to talk to a person, book a session, or for more direct help.
-            - The situation involves high conflict that seems unmanageable through text alone.
-          - **If criteria are met:** You MUST use the \`getAvailability\` tool to fetch open slots. Then, incorporate the suggestion naturally into your response. For example: "It sounds like this is incredibly difficult right now. I'm noticing a few openings for a one-on-one SOS session, which might be really helpful. Would you be interested in booking one?"
-          - **If you suggest a session:** Set \`suggestSOSText\` to \`true\` and include the \`availableSlots\`.
-          - **Otherwise:** Set \`suggestSOSText\` to \`false\` and do not mention SOS sessions.
-
-      **User Context:**
-      - Name: ${userProfile.name}
-      - Subscription Tier: ${userProfile.subscriptionTier}
-      - Relationship Status: ${userProfile.relationshipStatus || 'Not specified'}
-      - Goals: ${userProfile.goals?.join(', ') || 'Building healthier relationships'}
-    `;
-
-    // The user-facing prompt including conversation history.
-    const prompt = `
-      **Recent Conversation:**
-      ${previousMessages.map((m: Message) => `${m.role}: ${m.content}`).join('\n')}
+      Current message from ${userProfile.name}:
+      "${message}"
       
-      **Current message from ${userProfile.name}:**
-      \`\`\`
-      ${message}
-      \`\`\`
+      ${context ? `Additional context: ${context}` : ''}
       
       Please provide your response in the specified JSON format.
     `;
-    
-    // Calls the generative AI model with the defined prompts, tools, and safety settings.
-    const result = await ai.generate({
-        model: AI_MODELS.CHAT,
-        prompt: systemPrompt + '\n\n' + prompt,
-        tools: [getAvailabilityTool],
-        output: { 
-          format: 'json',
-          schema: AIChatOutputSchema 
-        },
-        config: {
-            // Configuration for Gemini models
-        }
-    });
 
-    const output = result.output();
-    
-    if (!output) {
-      // If the AI fails to generate a response, provide a safe fallback.
+    try {
+      // Generate AI response
+      const result = await generate({
+        model: AI_MODELS.CHAT,
+        prompt: userPrompt,
+        system: systemPrompt,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        },
+      });
+
+      // Parse the JSON response
+      const output = JSON.parse(result.text()) as ChatGuidanceOutput;
+
       return {
-        response: "I'm not sure how to respond to that. Could you try rephrasing?",
-        suggestSOSText: false,
-        tone: 'gentle' as const,
+        response: output.response || "I'm here to help with your relationship journey. Could you tell me more about what's on your mind?",
+        suggestions: output.suggestions || [
+          "Tell me more about your situation",
+          "What would you like to work on together?",
+          "How are you feeling about this?"
+        ],
+        resources: output.resources || [
+          {
+            title: "Communication Basics",
+            description: "Learn fundamental communication skills for relationships",
+            type: "article"
+          }
+        ],
+      };
+    } catch (error) {
+      console.error('AI Chat Guidance Error:', error);
+      
+      // Fallback response
+      return {
+        response: "I'm here to support you on your relationship journey. While I process your message, could you tell me more about what's most important to you right now?",
+        suggestions: [
+          "Share more about your relationship goals",
+          "Tell me about a specific challenge you're facing",
+          "Describe what a healthy relationship looks like to you"
+        ],
+        resources: [
+          {
+            title: "Getting Started with Relationship Coaching",
+            description: "Introduction to building healthier relationships",
+            type: "article"
+          }
+        ],
       };
     }
-
-    // Ensures a fallback response is provided if the AI output is empty.
-    return {
-        response: output.response || "I'm not sure how to respond to that. Could you try rephrasing?",
-        suggestSOSText: output.suggestSOSText || false,
-        tone: output.tone || 'gentle' as const,
-        availableSlots: output.availableSlots,
-        actionItems: output.actionItems,
-        resources: output.resources,
-    };
   }
 );
+
+// Export for use in other parts of the application
+export default aiChatGuidanceFlow;
