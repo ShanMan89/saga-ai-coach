@@ -7,6 +7,10 @@ import { add, startOfDay } from 'date-fns';
 
 // --- User Profile Functions ---
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    if (!firestoreAdmin) {
+        console.warn('Firestore Admin not initialized');
+        return null;
+    }
     const userDocRef = firestoreAdmin.collection('users').doc(userId);
     const userDoc = await userDocRef.get();
     if (userDoc.exists) {
@@ -31,6 +35,10 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 
 // --- Chat History Functions ---
 export const getChatHistory = async (userId: string, limitCount = 20): Promise<{ role: 'user' | 'assistant', content: string }[]> => {
+    if (!firestoreAdmin) {
+        console.warn('Firestore Admin not initialized');
+        return [];
+    }
     const chatHistoryRef = firestoreAdmin.collection(`users/${userId}/chatHistory`);
     const snapshot = await chatHistoryRef.orderBy('timestamp', 'desc').limit(limitCount).get();
     return snapshot.docs.map(doc => doc.data() as { role: 'user' | 'assistant', content: string }).reverse();
@@ -38,6 +46,10 @@ export const getChatHistory = async (userId: string, limitCount = 20): Promise<{
 
 // --- Journal Functions ---
 export const getJournalEntries = async (userId: string, limitCount = 50): Promise<JournalEntry[]> => {
+    if (!firestoreAdmin) {
+        console.warn('Firestore Admin not initialized');
+        return [];
+    }
     const entriesRef = firestoreAdmin.collection('journalEntries');
     const snapshot = await entriesRef.where('userId', '==', userId).orderBy('date', 'desc').limit(limitCount).get();
     return snapshot.docs.map(doc => {
@@ -52,6 +64,10 @@ export const getJournalEntries = async (userId: string, limitCount = 50): Promis
 
 // --- Appointment & Schedule Functions ---
 export const getAdminSchedule = async (date: Date): Promise<DailySchedule | null> => {
+    if (!firestoreAdmin) {
+        console.warn('Firestore Admin not initialized');
+        return null;
+    }
     const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
     const scheduleRef = firestoreAdmin.collection('adminSchedule').doc(dateString);
     const docSnap = await scheduleRef.get();
@@ -59,6 +75,9 @@ export const getAdminSchedule = async (date: Date): Promise<DailySchedule | null
 };
 
 export const bookAdminSlot = async (slot: string, userProfile: UserProfile): Promise<void> => {
+    if (!firestoreAdmin) {
+        throw new Error('Firestore Admin not initialized');
+    }
     const date = new Date(slot);
     const dateString = date.toISOString().split('T')[0];
     const timeString = date.toTimeString().split(' ')[0].substring(0, 5); // HH:mm
@@ -85,6 +104,9 @@ export const bookAdminSlot = async (slot: string, userProfile: UserProfile): Pro
 };
 
 export const bookAppointment = async (slot: string, userProfile: UserProfile): Promise<string> => {
+    if (!firestoreAdmin) {
+        throw new Error('Firestore Admin not initialized');
+    }
     // This function now handles both booking the slot and creating the appointment record
     // to ensure they happen together or not at all.
     await bookAdminSlot(slot, userProfile);
@@ -145,6 +167,10 @@ export const bookAppointment = async (slot: string, userProfile: UserProfile): P
 };
 
 export const getAppointmentById = async (appointmentId: string): Promise<Appointment | null> => {
+    if (!firestoreAdmin) {
+        console.warn('Firestore Admin not initialized');
+        return null;
+    }
     try {
         const appointmentDoc = await firestoreAdmin.collection('appointments').doc(appointmentId).get();
         if (appointmentDoc.exists) {
@@ -160,6 +186,9 @@ export const getAppointmentById = async (appointmentId: string): Promise<Appoint
 
 // --- Community Functions ---
 export const createCommunityPost = async (post: Omit<Post, 'id' | 'createdAt' | 'likes' | 'likedBy' | 'comments'>): Promise<Post> => {
+    if (!firestoreAdmin) {
+        throw new Error('Firestore Admin not initialized');
+    }
     const newPostRef = firestoreAdmin.collection('community-posts').doc();
     const newPost = {
         ...post,
@@ -181,6 +210,9 @@ export const createCommunityPost = async (post: Omit<Post, 'id' | 'createdAt' | 
 };
 
 export const togglePostLike = async (postId: string, userId: string) => {
+    if (!firestoreAdmin) {
+        throw new Error('Firestore Admin not initialized');
+    }
     const postRef = firestoreAdmin.collection('community-posts').doc(postId);
     const postDoc = await postRef.get();
 
@@ -200,6 +232,9 @@ export const togglePostLike = async (postId: string, userId: string) => {
 };
 
 export const addCommentToPost = async (postId: string, comment: Omit<Comment, 'id' | 'createdAt'>): Promise<Comment> => {
+    if (!firestoreAdmin) {
+        throw new Error('Firestore Admin not initialized');
+    }
     const postRef = firestoreAdmin.collection('community-posts').doc(postId);
     const newCommentId = firestoreAdmin.collection('community-posts').doc().id;
 
@@ -222,6 +257,10 @@ export const addCommentToPost = async (postId: string, comment: Omit<Comment, 'i
 
 // --- Schedule/Availability Functions ---
 export const getAvailability = async (): Promise<string[]> => {
+  if (!firestoreAdmin) {
+    console.warn('Firestore Admin not initialized');
+    return [];
+  }
   const availableSlots: string[] = [];
   const today = startOfDay(new Date());
   

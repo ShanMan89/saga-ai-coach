@@ -1,7 +1,7 @@
 
 "use client";
 
-import { bookSOSSession } from "@/ai/flows/book-sos-session";
+// Removed direct AI import - using API route instead
 import { getAvailability } from "@/services/firestore";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,11 +69,26 @@ export function SOSUI() {
     });
 
     try {
-      const result = await bookSOSSession({ slot: selectedSlot, userProfile: profile });
+      const response = await fetch('/api/ai/book-sos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slot: selectedSlot,
+          userProfile: profile
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to book SOS session');
+      }
+
+      const result = await response.json();
       loadingToast.dismiss();
       toast({
         title: result.success ? "SOS Session Booked!" : "Booking Failed",
-        description: result.confirmationMessage,
+        description: result.message || result.confirmationMessage,
         variant: result.success ? "default" : "destructive",
       });
       if (result.success) {

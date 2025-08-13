@@ -3,7 +3,7 @@
  * Provides personalized relationship coaching through AI-powered conversations
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineAction } from '@genkit-ai/core';
 import { generate } from '@genkit-ai/ai';
 import { AI_MODELS } from '../genkit';
 
@@ -42,11 +42,10 @@ export interface ChatGuidanceOutput {
 }
 
 // Main AI Chat Guidance Flow
-export const aiChatGuidanceFlow = defineFlow(
+export const aiChatGuidanceFlow = defineAction(
   {
     name: 'aiChatGuidance',
-    inputSchema: {} as ChatGuidanceInput,
-    outputSchema: {} as ChatGuidanceOutput,
+    actionType: 'flow',
   },
   async (input: ChatGuidanceInput): Promise<ChatGuidanceOutput> => {
     const { message, userProfile, previousMessages, context } = input;
@@ -104,8 +103,7 @@ export const aiChatGuidanceFlow = defineFlow(
       // Generate AI response
       const result = await generate({
         model: AI_MODELS.CHAT,
-        prompt: userPrompt,
-        system: systemPrompt,
+        prompt: `${systemPrompt}\n\n${userPrompt}`,
         config: {
           temperature: 0.7,
           maxOutputTokens: 1000,
@@ -155,3 +153,6 @@ export const aiChatGuidanceFlow = defineFlow(
 
 // Export for use in other parts of the application
 export default aiChatGuidanceFlow;
+
+// Named export for compatibility
+export const aiChat = aiChatGuidanceFlow;

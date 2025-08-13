@@ -3,8 +3,7 @@
 
 import { useState, useRef, useEffect, useTransition } from "react";
 import { Bot, Send, User, Clock, Loader2, Sparkles, Lock } from "lucide-react";
-import { aiChat } from "@/ai/flows/ai-chat-guidance";
-import { bookSOSSession } from "@/ai/flows/book-sos-session";
+// Removed direct AI imports - using API routes instead
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +94,24 @@ export function ChatUI() {
           
           const historyForAi = currentMessages.slice(-10);
 
-          const result = await aiChat({ message: input, userProfile: profile, previousMessages: historyForAi });
+          // Call AI chat API
+          const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: input,
+              userProfile: profile,
+              previousMessages: historyForAi
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to get AI response');
+          }
+
+          const result = await response.json();
           const assistantMessage: Message = {
             role: "assistant",
             content: result.response,
@@ -135,7 +151,22 @@ export function ChatUI() {
     });
 
     try {
-      const result = await bookSOSSession({ slot, userProfile: profile });
+      const response = await fetch('/api/ai/book-sos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slot,
+          userProfile: profile
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to book SOS session');
+      }
+
+      const result = await response.json();
       loadingToast.dismiss();
       toast({
         title: result.success ? "SOS Session Booked!" : "Booking Failed",

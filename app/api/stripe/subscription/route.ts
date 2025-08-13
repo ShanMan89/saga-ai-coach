@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { auth } from 'firebase-admin';
-import '@/lib/firebase-admin';
+import { authAdmin } from '@/lib/firebase-admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,9 +19,16 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    if (!authAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     let decodedToken;
     try {
-      decodedToken = await auth().verifyIdToken(token);
+      decodedToken = await authAdmin.verifyIdToken(token);
     } catch (authError) {
       return NextResponse.json(
         { error: 'Unauthorized: Invalid token' },
