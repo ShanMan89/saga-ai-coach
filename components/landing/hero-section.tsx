@@ -48,9 +48,12 @@ export function HeroSection() {
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800">
+            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800" onClick={() => {
+              // Scroll to features section
+              document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+            }}>
               <Play className="w-5 h-5 mr-2" />
-              Watch Demo
+              See How It Works
             </Button>
           </div>
 

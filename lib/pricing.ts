@@ -38,14 +38,14 @@ export const PRICING_PLANS: PricingPlan[] = [
       // Free tier doesn't need Stripe price IDs
     },
     features: [
-      '5 AI chat sessions per month',
+      '10 AI chat sessions per month',
       'Basic journal analysis',
       'Community access (read-only)',
       'Email support',
       'Relationship goal setting'
     ],
     limits: {
-      aiChatSessions: 5,
+      aiChatSessions: 10,
       sosSessionsPerMonth: 0,
       videoCoachingSessions: 0,
       communityAccess: 'read-only',

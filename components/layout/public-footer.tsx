@@ -9,14 +9,14 @@ const navigation = {
     { name: 'Testimonials', href: '#testimonials' },
   ],
   company: [
-    { name: 'About', href: '/about' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Contact', href: '/contact' },
+    { name: 'About', href: '#about' },
+    { name: 'Blog', href: '#blog' },
+    { name: 'Contact', href: '#contact' },
   ],
   support: [
-    { name: 'Help Center', href: '/help' },
-    { name: 'Privacy Policy', href: '/privacy' },
-    { name: 'Terms of Service', href: '/terms' },
+    { name: 'Help Center', href: '#help' },
+    { name: 'Privacy Policy', href: '#privacy' },
+    { name: 'Terms of Service', href: '#terms' },
   ],
   social: [
     { name: 'Twitter', href: '#', icon: Twitter },
