@@ -151,7 +151,7 @@ export const aiChatGuidanceFlow = ai.defineFlow(
           {
             title: "Communication Basics",
             description: "Learn fundamental communication skills for relationships",
-            type: "article"
+            type: "article" as const
           }
         ],
       };
@@ -170,7 +170,7 @@ export const aiChatGuidanceFlow = ai.defineFlow(
           {
             title: "Getting Started with Relationship Coaching",
             description: "Introduction to building healthier relationships",
-            type: "article"
+            type: "article" as const
           }
         ],
       };
