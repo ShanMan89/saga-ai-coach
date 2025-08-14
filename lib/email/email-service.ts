@@ -127,27 +127,44 @@ export class EmailService {
 
   /**
    * Core email sending method
-   * This would be implemented with your chosen email provider (SendGrid, AWS SES, etc.)
+   * Implemented with Resend email service
    */
   private async sendEmail(config: EmailConfig): Promise<boolean> {
     try {
-      // TODO: Implement with actual email service provider
-      // For now, this is a placeholder that logs the email
-      
+      // Check if email service is configured
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        console.warn('Email service not configured: Missing RESEND_API_KEY');
+        console.log('📧 Email would be sent:', {
+          to: config.to,
+          subject: config.subject,
+          preview: config.text?.substring(0, 100) + '...'
+        });
+        return false;
+      }
+
+      // Dynamic import of Resend to avoid issues if not installed
+      const { Resend } = await import('resend');
+      const resend = new Resend(apiKey);
+
+      const result = await resend.emails.send({
+        from: config.from || process.env.EMAIL_FROM || 'noreply@sagaaicoach.com',
+        to: config.to,
+        subject: config.subject,
+        html: config.html,
+        text: config.text,
+      });
+
+      console.log('✅ Email sent successfully:', result.data?.id);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send email:', error);
+      // Fallback: log the email for development
       console.log('📧 Email would be sent:', {
         to: config.to,
         subject: config.subject,
         preview: config.text?.substring(0, 100) + '...'
       });
-
-      // In production, replace with:
-      // - SendGrid: await sgMail.send(config)
-      // - AWS SES: await ses.sendEmail(...)
-      // - Resend: await resend.emails.send(...)
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to send email:', error);
       return false;
     }
   }

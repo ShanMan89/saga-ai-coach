@@ -4,19 +4,75 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { authAdmin } from '@/lib/firebase-admin';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
+// Input validation schema
+const sosBookingSchema = z.object({
+  slot: z.string().datetime(),
+  userProfile: z.object({
+    uid: z.string(),
+    subscriptionTier: z.enum(['Explorer', 'Growth', 'Transformation']),
+  }),
+});
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { slot, userProfile } = body;
-
-    // Validate required fields
-    if (!slot || !userProfile) {
+    // Verify authentication
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
-        { error: 'Missing required fields: slot, userProfile' },
+        { error: 'Unauthorized: Missing or invalid token' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    if (!authAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = await authAdmin.verifyIdToken(token);
+    } catch (authError) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Validate input
+    const validationResult = sosBookingSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validationResult.error.errors },
         { status: 400 }
+      );
+    }
+
+    const { slot, userProfile } = validationResult.data;
+
+    // Verify user can only access their own data
+    if (decodedToken.uid !== userProfile.uid) {
+      return NextResponse.json(
+        { error: 'Forbidden: Can only access your own data' },
+        { status: 403 }
+      );
+    }
+
+    // Check if user has SOS booking permissions
+    if (userProfile.subscriptionTier === 'Explorer') {
+      return NextResponse.json(
+        { error: 'Upgrade required: SOS sessions are available for Growth and Transformation plans' },
+        { status: 403 }
       );
     }
 

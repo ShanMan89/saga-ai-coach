@@ -111,11 +111,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Error fetching user profile:", error);
-      toast({
-        title: "Error fetching user profile",
-        description: error.message,
-        variant: "destructive",
-      });
+      
+      // Only show toast for non-network errors to avoid spam
+      if (!error.message?.includes('Failed to fetch') && !error.message?.includes('network')) {
+        toast({
+          title: "Error loading profile",
+          description: error?.message || "Could not load user profile. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
       setProfile(null);
     } finally {
       setIsProfileLoading(false);

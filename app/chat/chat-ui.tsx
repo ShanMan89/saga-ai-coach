@@ -67,8 +67,8 @@ export function ChatUI() {
       } catch (error: any) {
         console.error("Error fetching chat history:", error);
         toast({
-          title: "Error fetching chat history",
-          description: error.message,
+          title: "Error loading chat history",
+          description: error?.message || "Could not load previous messages. Please refresh the page.",
           variant: "destructive",
         });
       } finally {
@@ -94,11 +94,15 @@ export function ChatUI() {
           
           const historyForAi = currentMessages.slice(-10);
 
+          // Get auth token
+          const token = await user.getIdToken();
+          
           // Call AI chat API
           const response = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
               message: input,
@@ -108,7 +112,8 @@ export function ChatUI() {
           });
 
           if (!response.ok) {
-            throw new Error('Failed to get AI response');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `AI service error: ${response.status}`);
           }
 
           const result = await response.json();
@@ -151,10 +156,14 @@ export function ChatUI() {
     });
 
     try {
+      // Get auth token
+      const token = await user.getIdToken();
+      
       const response = await fetch('/api/ai/book-sos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           slot,

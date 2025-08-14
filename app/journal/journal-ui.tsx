@@ -65,8 +65,13 @@ function JournalView() {
             try {
                 const fetchedEntries = await getJournalEntries(services.firestore, user.uid);
                 setEntries(fetchedEntries);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to fetch journal entries:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Error loading entries",
+                    description: error?.message || "Could not load journal entries. Please try again.",
+                });
             } finally {
                 setIsLoadingEntries(false);
             }
@@ -84,11 +89,15 @@ function JournalView() {
                 if (canAnalyze) {
                     toast({ title: "Analyzing your entry...", description: "This may take a moment." });
                     
+                    // Get auth token
+                    const token = await user.getIdToken();
+                    
                     // Call AI analysis API
                     const analysisResponse = await fetch('/api/ai/journal-analysis', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
                         },
                         body: JSON.stringify({
                             journalEntry: contentToSave,
