@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiChatGuidanceFlow } from '@/ai/flows/ai-chat-guidance';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

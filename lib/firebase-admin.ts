@@ -13,10 +13,23 @@ if (!admin.apps.length && typeof window === 'undefined') {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     
     if (projectId && privateKey && clientEmail) {
+      // Clean and format the private key properly
+      let formattedPrivateKey = privateKey;
+      
+      // Handle different formats of private key
+      if (privateKey.includes('\\n')) {
+        formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      }
+      
+      // Ensure proper PEM format
+      if (!formattedPrivateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+        formattedPrivateKey = `-----BEGIN PRIVATE KEY-----\n${formattedPrivateKey}\n-----END PRIVATE KEY-----\n`;
+      }
+      
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
-          privateKey: privateKey.replace(/\\n/g, '\n'),
+          privateKey: formattedPrivateKey,
           clientEmail,
         }),
         databaseURL: `https://${projectId}.firebaseio.com`,
