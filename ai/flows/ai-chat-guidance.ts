@@ -66,8 +66,12 @@ export const aiChatGuidanceFlow = ai.defineFlow(
     }),
     outputSchema: ChatGuidanceOutputSchema,
   },
-  async (input: ChatGuidanceInput): Promise<ChatGuidanceOutput> => {
+  async (input) => {
     const { message, userProfile, previousMessages, context } = input;
+    
+    if (!userProfile) {
+      throw new Error('User profile is required');
+    }
 
     // Build conversation history
     const conversationHistory = previousMessages
