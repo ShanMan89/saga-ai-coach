@@ -14,6 +14,19 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai'],
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://js.stripe.com https://apis.google.com; object-src 'none';"
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Fix for undici module compatibility
     if (!isServer) {

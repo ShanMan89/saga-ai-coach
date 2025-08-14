@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, OAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/hooks/use-auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,11 +47,32 @@ export default function SignUpPage() {
   const { toast } = useToast();
   const { services } = useAuth();
 
-  const handleSuccessfulLogin = async () => {
-    // A short delay to allow the `onCreateUser` cloud function to set custom claims.
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  const createUserDocument = async (user: any) => {
+    if (!services) return;
+    
+    try {
+      const userDocRef = doc(services.firestore, 'users', user.uid);
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email?.split('@')[0] || 'User',
+        avatar: user.photoURL || '',
+        subscriptionTier: 'Explorer',
+        messageCount: 0,
+        role: 'user',
+        relationshipStatus: '',
+        goals: [],
+        focusAreas: [],
+        createdAt: new Date(),
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error creating user document:', error);
+    }
+  };
+
+  const handleSuccessfulLogin = async (user: any) => {
+    await createUserDocument(user);
     toast({ title: "Success", description: "Account created successfully. Welcome!" });
-    // Redirect new users to onboarding flow
     router.push('/onboarding');
   }
 
@@ -62,8 +84,8 @@ export default function SignUpPage() {
     }
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(services.auth, email, password);
-      await handleSuccessfulLogin();
+      const result = await createUserWithEmailAndPassword(services.auth, email, password);
+      await handleSuccessfulLogin(result.user);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -90,8 +112,8 @@ export default function SignUpPage() {
     }
 
     try {
-      await signInWithPopup(services.auth, provider);
-      await handleSuccessfulLogin();
+      const result = await signInWithPopup(services.auth, provider);
+      await handleSuccessfulLogin(result.user);
     } catch (error: any) {
        toast({
         variant: "destructive",
