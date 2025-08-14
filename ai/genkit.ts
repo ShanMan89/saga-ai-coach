@@ -12,6 +12,8 @@ configureGenkit({
       apiKey: process.env.GOOGLE_API_KEY,
     }),
   ],
+  // Suppress deprecation warnings in production
+  logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
 });
 
 export const AI_MODELS = {
