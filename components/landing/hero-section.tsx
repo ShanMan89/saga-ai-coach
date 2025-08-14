@@ -41,17 +41,28 @@ export function HeroSection() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button size="lg" asChild className="text-lg px-8 py-6 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all">
-              <Link href="/auth/signup" className="flex items-center gap-2">
+            <Link href="/auth/signup">
+              <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
                 <Heart className="w-5 h-5" />
                 Start Your Journey Free
                 <ArrowRight className="w-5 h-5" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800" onClick={() => {
-              // Scroll to features section
-              document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-            }}>
+              </Button>
+            </Link>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="text-lg px-8 py-6 border-gray-300 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-800" 
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('See How It Works clicked'); // Debug log
+                const featuresSection = document.getElementById('features');
+                if (featuresSection) {
+                  featuresSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  console.log('Features section not found');
+                }
+              }}
+            >
               <Play className="w-5 h-5 mr-2" />
               See How It Works
             </Button>
