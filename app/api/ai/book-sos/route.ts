@@ -76,20 +76,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, return a success response
-    // In production, this would integrate with a calendar system
-    const result = {
-      success: true,
-      sessionDetails: {
-        time: slot,
-        duration: '50 minutes',
-        meetingLink: 'https://meet.google.com/generated-link',
-        instructions: 'You will receive a calendar invite shortly. Please join the meeting 5 minutes early.',
-      },
-      message: `Your SOS session has been booked for ${slot}. You'll receive a confirmation email shortly.`,
-    };
+    // Get user profile from Firestore for complete booking data
+    const { getUserProfile, bookAppointment } = await import('@/services/firestore-admin');
+    const fullUserProfile = await getUserProfile(userProfile.uid);
+    
+    if (!fullUserProfile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json(result);
+    try {
+      // Book the appointment with real calendar integration
+      const appointmentId = await bookAppointment(slot, fullUserProfile);
+      
+      // Get the created appointment to return details
+      const { getAppointmentById } = await import('@/services/firestore-admin');
+      const appointment = await getAppointmentById(appointmentId);
+      
+      if (!appointment) {
+        throw new Error('Failed to retrieve created appointment');
+      }
+
+      // Send confirmation email
+      try {
+        const { NotificationManager } = await import('@/lib/email/notification-manager');
+        
+        const sessionDate = new Date(slot);
+        const notificationManager = NotificationManager.getInstance();
+        await notificationManager.sendSOSConfirmation({
+          userId: fullUserProfile.uid,
+          userEmail: fullUserProfile.email!,
+          userName: fullUserProfile.name,
+          sessionTime: sessionDate.toLocaleTimeString(),
+          sessionDate: sessionDate.toLocaleDateString(),
+          meetingLink: appointment.meetLink || 'Meeting link will be provided',
+        });
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // Don't fail the booking if email fails
+      }
+
+      const result = {
+        success: true,
+        appointmentId,
+        sessionDetails: {
+          time: slot,
+          duration: '60 minutes',
+          meetingLink: appointment.meetLink || 'Meeting link will be provided via email',
+          instructions: 'You will receive a calendar invite and confirmation email shortly. Please join the meeting 5 minutes early.',
+        },
+        confirmationMessage: `Your SOS session has been booked for ${new Date(slot).toLocaleString()}. You'll receive a confirmation email with meeting details shortly.`,
+      };
+
+      return NextResponse.json(result);
+    } catch (bookingError: any) {
+      console.error('Booking error:', bookingError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to book appointment',
+          message: bookingError.message || 'The selected time slot may no longer be available. Please try a different time.'
+        },
+        { status: 409 }
+      );
+    }
 
   } catch (error) {
     console.error('Book SOS session error:', error);

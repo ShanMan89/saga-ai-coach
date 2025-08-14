@@ -44,32 +44,140 @@ export class GoogleMeetProvider extends VideoMeetingProvider {
 
   async createMeeting(request: CreateMeetingRequest): Promise<MeetingDetails> {
     try {
-      // In production, this would use Google Calendar API
-      // For now, we'll generate a placeholder Google Meet link
-      const meetingId = this.generateMeetingId();
+      // Check if we have the required environment variables for Google Calendar API
+      const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+      const clientEmail = process.env.GOOGLE_CALENDAR_CLIENT_EMAIL;
       
-      // TODO: Implement actual Google Calendar API integration
-      // const calendar = google.calendar({ version: 'v3', auth });
-      // const event = await calendar.events.insert({...});
+      if (!privateKey || !clientEmail) {
+        console.warn('Google Calendar credentials not configured, using placeholder link');
+        const meetingId = this.generateMeetingId();
+        return {
+          meetingId,
+          joinUrl: `https://meet.google.com/${meetingId}`,
+          password: undefined,
+        };
+      }
+
+      // Dynamic import to avoid issues if googleapis isn't available
+      const { google } = await import('googleapis');
       
+      // Set up authentication
+      const auth = new google.auth.JWT({
+        email: clientEmail,
+        key: privateKey.replace(/\\n/g, '\n'),
+        scopes: ['https://www.googleapis.com/auth/calendar'],
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      
+      // Create calendar event with Google Meet
+      const startTime = new Date(request.startTime);
+      const endTime = new Date(startTime.getTime() + (request.duration * 60 * 1000));
+
+      const event = {
+        summary: request.title,
+        description: `SOS Coaching Session\n\nCoach: ${request.hostEmail || 'Saga AI Coach'}\nParticipant: ${request.attendeeName || 'Client'}`,
+        start: {
+          dateTime: startTime.toISOString(),
+          timeZone: 'UTC',
+        },
+        end: {
+          dateTime: endTime.toISOString(),
+          timeZone: 'UTC',
+        },
+        attendees: [
+          ...(request.hostEmail ? [{ email: request.hostEmail }] : []),
+          ...(request.attendeeEmail ? [{ email: request.attendeeEmail, displayName: request.attendeeName }] : []),
+        ],
+        conferenceData: {
+          createRequest: {
+            requestId: `sos-${Date.now()}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet'
+            }
+          }
+        },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'email', minutes: 24 * 60 }, // 24 hours before
+            { method: 'popup', minutes: 15 }, // 15 minutes before
+          ],
+        },
+      };
+
+      const response = await calendar.events.insert({
+        calendarId: 'primary',
+        conferenceDataVersion: 1,
+        sendUpdates: 'all', // Send invites to all attendees
+        requestBody: event,
+      });
+
+      const createdEvent = response.data;
+      const meetingId = createdEvent.id || this.generateMeetingId();
+      const joinUrl = createdEvent.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video')?.uri || 
+                     createdEvent.hangoutLink || 
+                     `https://meet.google.com/${this.generateMeetingId()}`;
+
       return {
         meetingId,
-        joinUrl: `https://meet.google.com/${meetingId}`,
+        joinUrl,
         password: undefined, // Google Meet doesn't use passwords
       };
     } catch (error) {
       console.error('Failed to create Google Meet:', error);
-      throw new Error('Failed to create Google Meet link');
+      
+      // Fallback to placeholder link if API fails
+      const meetingId = this.generateMeetingId();
+      return {
+        meetingId,
+        joinUrl: `https://meet.google.com/${meetingId}`,
+        password: undefined,
+      };
     }
   }
 
   async deleteMeeting(meetingId: string): Promise<boolean> {
     try {
-      // TODO: Implement Google Calendar event deletion
-      console.log('Would delete Google Meet:', meetingId);
+      // Check if we have the required environment variables for Google Calendar API
+      const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
+      const clientEmail = process.env.GOOGLE_CALENDAR_CLIENT_EMAIL;
+      
+      if (!privateKey || !clientEmail) {
+        console.warn('Google Calendar credentials not configured, cannot delete calendar event');
+        return true; // Return true to not block the cancellation process
+      }
+
+      // Dynamic import to avoid issues if googleapis isn't available
+      const { google } = await import('googleapis');
+      
+      // Set up authentication
+      const auth = new google.auth.JWT({
+        email: clientEmail,
+        key: privateKey.replace(/\\n/g, '\n'),
+        scopes: ['https://www.googleapis.com/auth/calendar'],
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      
+      // Delete the calendar event
+      await calendar.events.delete({
+        calendarId: 'primary',
+        eventId: meetingId,
+        sendUpdates: 'all', // Notify all attendees about cancellation
+      });
+
+      console.log('Successfully deleted Google Calendar event:', meetingId);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete Google Meet:', error);
+      
+      // If the event doesn't exist, consider it successfully deleted
+      if (error?.status === 404 || error?.code === 404) {
+        console.log('Calendar event not found, considering deletion successful:', meetingId);
+        return true;
+      }
+      
       return false;
     }
   }
@@ -244,9 +352,6 @@ export class MeetingService {
   }
 }
 
-// Singleton instance
-export const meetingService = new MeetingService();
-
 // Provider factory functions
 export const createGoogleMeetProvider = (apiKey: string, serviceAccountEmail: string) => 
   new GoogleMeetProvider(apiKey, serviceAccountEmail);
@@ -259,17 +364,20 @@ export const createSimpleMeetProvider = (baseUrl?: string) =>
 
 // Environment-based provider setup
 export const setupMeetingProvider = () => {
-  const provider = process.env.VIDEO_PROVIDER || 'simple';
+  const provider = process.env.VIDEO_PROVIDER || 'auto';
   
   switch (provider) {
     case 'google':
-      if (process.env.GOOGLE_API_KEY && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+      if (process.env.GOOGLE_CALENDAR_PRIVATE_KEY && process.env.GOOGLE_CALENDAR_CLIENT_EMAIL) {
         meetingService.setProvider(
           createGoogleMeetProvider(
-            process.env.GOOGLE_API_KEY,
-            process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
+            process.env.GOOGLE_API_KEY || '',
+            process.env.GOOGLE_CALENDAR_CLIENT_EMAIL
           )
         );
+      } else {
+        console.warn('Google Meet provider selected but credentials not found, falling back to Simple provider');
+        meetingService.setProvider(createSimpleMeetProvider(process.env.MEET_BASE_URL));
       }
       break;
     
@@ -282,14 +390,56 @@ export const setupMeetingProvider = () => {
             process.env.ZOOM_ACCOUNT_ID
           )
         );
+      } else {
+        console.warn('Zoom provider selected but credentials not found, falling back to Simple provider');
+        meetingService.setProvider(createSimpleMeetProvider(process.env.MEET_BASE_URL));
       }
       break;
     
     case 'simple':
-    default:
       meetingService.setProvider(
         createSimpleMeetProvider(process.env.MEET_BASE_URL)
       );
       break;
+    
+    case 'auto':
+    default:
+      // Auto-detect best available provider
+      if (process.env.GOOGLE_CALENDAR_PRIVATE_KEY && process.env.GOOGLE_CALENDAR_CLIENT_EMAIL) {
+        console.log('Auto-selecting Google Meet provider');
+        meetingService.setProvider(
+          createGoogleMeetProvider(
+            process.env.GOOGLE_API_KEY || '',
+            process.env.GOOGLE_CALENDAR_CLIENT_EMAIL
+          )
+        );
+      } else if (process.env.ZOOM_API_KEY && process.env.ZOOM_API_SECRET && process.env.ZOOM_ACCOUNT_ID) {
+        console.log('Auto-selecting Zoom provider');
+        meetingService.setProvider(
+          createZoomProvider(
+            process.env.ZOOM_API_KEY,
+            process.env.ZOOM_API_SECRET,
+            process.env.ZOOM_ACCOUNT_ID
+          )
+        );
+      } else {
+        console.log('Auto-selecting Simple Meet provider');
+        meetingService.setProvider(
+          createSimpleMeetProvider(process.env.MEET_BASE_URL)
+        );
+      }
+      break;
   }
 };
+
+// Singleton instance
+export const meetingService = new MeetingService();
+
+// Initialize the provider when this module is imported
+try {
+  setupMeetingProvider();
+} catch (error) {
+  console.error('Failed to setup meeting provider:', error);
+  // Fallback to simple provider
+  meetingService.setProvider(new SimpleMeetProvider());
+}
