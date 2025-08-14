@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { analyzeJournalEntry } from "@/ai/flows/journal-analysis";
+// Removed direct AI import - using API route instead
 import type { JournalEntry, AnalyzeJournalEntryOutput } from "@/lib/types";
 import { saveJournalEntry, getJournalEntries } from "@/services/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -83,7 +83,22 @@ function JournalView() {
                 let analysis: AnalyzeJournalEntryOutput | null = null;
                 if (canAnalyze) {
                     toast({ title: "Analyzing your entry...", description: "This may take a moment." });
-                    analysis = await analyzeJournalEntry({ journalEntry: contentToSave, userProfile: profile });
+                    
+                    // Call AI analysis API
+                    const analysisResponse = await fetch('/api/ai/journal-analysis', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            journalEntry: contentToSave,
+                            userProfile: profile
+                        }),
+                    });
+
+                    if (analysisResponse.ok) {
+                        analysis = await analysisResponse.json();
+                    }
                 }
                 
                 const entryData = {

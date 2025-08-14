@@ -3,9 +3,8 @@
  * Provides personalized relationship coaching through AI-powered conversations
  */
 
-import { defineAction } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/ai';
-import { AI_MODELS } from '../genkit';
+import { ai, AI_MODELS } from '../genkit';
+import { z } from 'zod';
 
 // Types for the flow
 export interface Message {
@@ -41,11 +40,31 @@ export interface ChatGuidanceOutput {
   }>;
 }
 
+// Schema for output validation
+const ChatGuidanceOutputSchema = z.object({
+  response: z.string(),
+  suggestions: z.array(z.string()),
+  resources: z.array(z.object({
+    title: z.string(),
+    description: z.string(),
+    type: z.enum(['article', 'exercise', 'tool'])
+  })),
+  suggestSOSText: z.string().optional(),
+  availableSlots: z.array(z.string()).optional()
+});
+
 // Main AI Chat Guidance Flow
-export const aiChatGuidanceFlow = defineAction(
+export const aiChatGuidanceFlow = ai.defineFlow(
   {
     name: 'aiChatGuidance',
     actionType: 'flow',
+    inputSchema: z.object({
+      message: z.string(),
+      userProfile: z.any(),
+      previousMessages: z.array(z.any()),
+      context: z.string().optional()
+    }),
+    outputSchema: ChatGuidanceOutputSchema,
   },
   async (input: ChatGuidanceInput): Promise<ChatGuidanceOutput> => {
     const { message, userProfile, previousMessages, context } = input;
@@ -101,17 +120,21 @@ export const aiChatGuidanceFlow = defineAction(
 
     try {
       // Generate AI response
-      const result = await generate({
+      const result = await ai.generate({
         model: AI_MODELS.CHAT,
         prompt: `${systemPrompt}\n\n${userPrompt}`,
+        output: {
+          format: 'json',
+          schema: ChatGuidanceOutputSchema
+        },
         config: {
           temperature: 0.7,
           maxOutputTokens: 1000,
         },
       });
 
-      // Parse the JSON response
-      const output = JSON.parse(result.text()) as ChatGuidanceOutput;
+      // Get the output from the result
+      const output = result.output() as ChatGuidanceOutput;
 
       return {
         response: output.response || "I'm here to help with your relationship journey. Could you tell me more about what's on your mind?",
