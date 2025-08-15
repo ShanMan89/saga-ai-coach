@@ -63,13 +63,19 @@ export async function updateUserSubscription(
  * Determine subscription tier from Stripe price ID
  */
 export function getTierFromPriceId(priceId: string): SubscriptionTier {
-  // Growth tier price IDs
-  if (priceId === 'price_growth_monthly' || priceId === 'price_growth_yearly') {
+  // Growth tier price IDs - check environment variables
+  const growthMonthly = process.env.STRIPE_GROWTH_PLAN_MONTHLY_PRICE_ID;
+  const growthYearly = process.env.STRIPE_GROWTH_PLAN_YEARLY_PRICE_ID;
+  
+  if (priceId === growthMonthly || priceId === growthYearly) {
     return 'Growth';
   }
   
-  // Transformation tier price IDs  
-  if (priceId === 'price_transformation_monthly' || priceId === 'price_transformation_yearly') {
+  // Transformation tier price IDs - check environment variables
+  const transformationMonthly = process.env.STRIPE_TRANSFORMATION_PLAN_MONTHLY_PRICE_ID;
+  const transformationYearly = process.env.STRIPE_TRANSFORMATION_PLAN_YEARLY_PRICE_ID;
+  
+  if (priceId === transformationMonthly || priceId === transformationYearly) {
     return 'Transformation';
   }
   

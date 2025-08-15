@@ -1,8 +1,48 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Image optimization
   images: {
-    domains: ['placehold.co', 'lh3.googleusercontent.com', 'firebasestorage.googleapis.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  
+  // Performance optimizations
+  poweredByHeader: false,
+  compress: true,
+  swcMinify: true,
+  
+  // Production optimizations
+  ...(process.env.NODE_ENV === 'production' && {
+    compiler: {
+      removeConsole: {
+        exclude: ['error'],
+      },
+    },
+  }),
+  
+  // Environment variables
   env: {
     FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -11,8 +51,19 @@ const nextConfig = {
     FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   },
+  
+  // Experimental features
   experimental: {
     serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
   },
   async headers() {
     return [
@@ -27,7 +78,7 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Fix for undici module compatibility
     if (!isServer) {
       config.resolve.fallback = {
@@ -43,6 +94,62 @@ const nextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         undici: false,
+      };
+    }
+
+    // Bundle analysis
+    if (process.env.ANALYZE === 'true') {
+      const BundleAnalyzerPlugin = require('@next/bundle-analyzer')({
+        enabled: true,
+      });
+      config.plugins.push(new BundleAnalyzerPlugin());
+    }
+
+    // Code splitting optimizations
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          // Vendor chunk for stable dependencies
+          vendor: {
+            name: 'vendor',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/]/,
+            priority: 20,
+          },
+          // Common chunk for shared components
+          common: {
+            name: 'common',
+            chunks: 'all',
+            minChunks: 2,
+            priority: 10,
+            reuseExistingChunk: true,
+            enforce: true,
+          },
+          // UI components chunk
+          ui: {
+            name: 'ui',
+            chunks: 'all',
+            test: /[\\/]components[\\/]ui[\\/]/,
+            priority: 30,
+          },
+          // Firebase chunk
+          firebase: {
+            name: 'firebase',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
+            priority: 40,
+          },
+          // Radix UI chunk
+          radix: {
+            name: 'radix',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+            priority: 35,
+          },
+        },
       };
     }
     

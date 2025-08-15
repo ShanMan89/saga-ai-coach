@@ -35,6 +35,24 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Claude Code Sub-Agents (don't push to GitHub)
+claude-code-sub-agents/
+
+# Documentation files (keep only README.md)
+*.md
+!README.md
+docs/
+CLAUDE.md
+FUNCTIONALITY_AUDIT_REPORT.md
+INTEGRATION_TEST_REPORT.md
+ENVIRONMENT_VARIABLES.md
+TESTING_GUIDE.md
+SECURITY_AUDIT_REPORT.md
+SECURITY_RECOMMENDATIONS.md
+COMPREHENSIVE_QA_REPORT.md
+100_PERCENT_FUNCTIONALITY_REPORT.md
+DEPLOYMENT_MONITORING.md
+
 # backup files
 *.bak
 
@@ -44,3 +62,19 @@ next-env.d.ts
 
 # OS generated files
 Thumbs.db
+
+# Documentation files (exclude all .md files except README.md)
+*.md
+!README.md
+
+# Reports and documentation
+*_REPORT.md
+*_GUIDE.md
+SETUP_*.md
+ENVIRONMENT_*.md
+SECURITY_*.md
+TESTING_*.md
+PHASE_*.md
+docs/
+FUNCTIONALITY_AUDIT_REPORT.md
+INTEGRATION_TEST_REPORT.md

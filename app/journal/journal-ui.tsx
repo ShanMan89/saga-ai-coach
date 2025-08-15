@@ -84,57 +84,113 @@ function JournalView() {
 
         startTransition(async () => {
             const contentToSave = newEntryContent;
-            try {
-                let analysis: AnalyzeJournalEntryOutput | null = null;
-                if (canAnalyze) {
-                    toast({ title: "Analyzing your entry...", description: "This may take a moment." });
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            const saveWithRetry = async (): Promise<void> => {
+                try {
+                    let analysis: AnalyzeJournalEntryOutput | null = null;
                     
-                    // Get auth token
-                    const token = await user.getIdToken();
-                    
-                    // Call AI analysis API
-                    const analysisResponse = await fetch('/api/ai/journal-analysis', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                            journalEntry: contentToSave,
-                            userProfile: profile
-                        }),
-                    });
+                    // Try AI analysis if user has permission
+                    if (canAnalyze) {
+                        toast({ title: "Analyzing your entry...", description: "This may take a moment." });
+                        
+                        try {
+                            // Get auth token with retry
+                            const token = await user.getIdToken(/* forceRefresh */ retryCount > 0);
+                            
+                            // Call AI analysis API
+                            const analysisResponse = await fetch('/api/ai/journal-analysis', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                    journalEntry: contentToSave,
+                                    userProfile: profile
+                                }),
+                            });
 
-                    if (analysisResponse.ok) {
-                        analysis = await analysisResponse.json();
+                            if (analysisResponse.ok) {
+                                analysis = await analysisResponse.json();
+                            } else if (analysisResponse.status === 401 && retryCount < maxRetries) {
+                                // Token might be expired, retry will force refresh
+                                throw new Error('Authentication failed, retrying...');
+                            } else {
+                                console.warn('Analysis failed, saving without analysis:', analysisResponse.status);
+                                toast({ 
+                                    title: "Analysis unavailable", 
+                                    description: "Saving entry without AI analysis." 
+                                });
+                            }
+                        } catch (analysisError) {
+                            console.warn('AI analysis failed:', analysisError);
+                            if (retryCount < maxRetries) {
+                                throw analysisError; // Trigger retry
+                            }
+                            // Continue without analysis after max retries
+                            toast({ 
+                                title: "Analysis unavailable", 
+                                description: "Saving entry without AI analysis." 
+                            });
+                        }
+                    }
+                    
+                    // Save the entry
+                    const entryData = {
+                        content: contentToSave,
+                        analysis: analysis || undefined,
+                    };
+
+                    const newId = await saveJournalEntry(services.firestore, user.uid, entryData);
+                    
+                    const newEntry: JournalEntry = { 
+                        id: newId, 
+                        userId: user.uid, 
+                        date: new Date(),
+                        content: contentToSave,
+                        analysis: analysis || undefined
+                    };
+                    
+                    setEntries([newEntry, ...entries]);
+                    setSelectedEntry(newEntry);
+                    setNewEntryContent(""); // Clear the form
+                    setView('entry');
+                    toast({
+                        title: canAnalyze && analysis ? "Saved & Analyzed" : "Entry Saved",
+                        description: canAnalyze && analysis 
+                            ? "Your journal entry has been saved with AI insights." 
+                            : "Your journal entry has been saved."
+                    });
+                    
+                } catch (error) {
+                    retryCount++;
+                    console.error(`Error saving entry (attempt ${retryCount}):`, error);
+                    
+                    if (retryCount < maxRetries) {
+                        // Wait before retry (exponential backoff)
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+                        toast({ 
+                            title: "Retrying...", 
+                            description: `Attempt ${retryCount + 1} of ${maxRetries}` 
+                        });
+                        await saveWithRetry();
+                    } else {
+                        throw error; // Final failure
                     }
                 }
-                
-                const entryData = {
-                    content: contentToSave,
-                    analysis: analysis || undefined,
-                };
+            };
 
-                const newId = await saveJournalEntry(services.firestore, user.uid, entryData);
-                
-                const newEntry: JournalEntry = { 
-                    id: newId, 
-                    userId: user.uid, 
-                    date: new Date(),
-                    content: contentToSave,
-                    analysis: analysis || undefined
-                };
-                
-                setEntries([newEntry, ...entries]);
-                setSelectedEntry(newEntry);
-                setView('entry');
-                toast({
-                    title: canAnalyze ? "Saved & Analyzed" : "Entry Saved",
-                    description: canAnalyze ? "Your journal entry has been saved with AI insights." : "Your journal entry has been saved."
+            try {
+                await saveWithRetry();
+            } catch (finalError) {
+                console.error("Final error saving entry:", finalError);
+                toast({ 
+                    variant: "destructive", 
+                    title: "Failed to save entry", 
+                    description: "Please check your connection and try again. Your entry has been preserved." 
                 });
-            } catch (error) {
-                 console.error("Error saving entry:", error);
-                 toast({ variant: "destructive", title: "Error", description: "Failed to save entry." });
             }
         });
     }

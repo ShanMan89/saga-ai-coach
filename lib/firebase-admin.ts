@@ -14,16 +14,28 @@ if (!admin.apps.length && typeof window === 'undefined') {
     
     if (projectId && privateKey && clientEmail) {
       // Clean and format the private key properly
-      let formattedPrivateKey = privateKey;
+      let formattedPrivateKey = privateKey.trim();
       
       // Handle different formats of private key
-      if (privateKey.includes('\\n')) {
-        formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      if (formattedPrivateKey.includes('\\n')) {
+        formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
+      }
+      
+      // Remove any quotes around the key
+      if ((formattedPrivateKey.startsWith('"') && formattedPrivateKey.endsWith('"')) ||
+          (formattedPrivateKey.startsWith("'") && formattedPrivateKey.endsWith("'"))) {
+        formattedPrivateKey = formattedPrivateKey.slice(1, -1);
       }
       
       // Ensure proper PEM format
       if (!formattedPrivateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
         formattedPrivateKey = `-----BEGIN PRIVATE KEY-----\n${formattedPrivateKey}\n-----END PRIVATE KEY-----\n`;
+      }
+      
+      // Additional validation - check if key looks valid
+      if (!formattedPrivateKey.includes('-----BEGIN PRIVATE KEY-----') || 
+          !formattedPrivateKey.includes('-----END PRIVATE KEY-----')) {
+        throw new Error('Invalid private key format');
       }
       
       admin.initializeApp({

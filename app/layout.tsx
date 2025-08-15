@@ -3,6 +3,8 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { AuthErrorBoundary } from '@/components/auth/auth-error-boundary';
+import { ThemeProvider } from '@/hooks/use-theme';
+import { EnhancedErrorBoundary } from '@/components/error/enhanced-error-boundary';
 
 export const metadata: Metadata = {
   title: 'Saga AI Coach - Premium Relationship Coaching',
@@ -47,7 +49,6 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -63,12 +64,16 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AuthErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </AuthErrorBoundary>
-        <Toaster />
+        <ThemeProvider>
+          <EnhancedErrorBoundary level="critical" showDetails={false}>
+            <AuthErrorBoundary>
+              <AuthProvider>
+                {children}
+              </AuthProvider>
+            </AuthErrorBoundary>
+            <Toaster />
+          </EnhancedErrorBoundary>
+        </ThemeProvider>
       </body>
     </html>
   );

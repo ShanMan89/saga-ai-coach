@@ -77,10 +77,98 @@ export async function POST(request: NextRequest) {
 
 async function handleSuccessfulPayment(invoice: Stripe.Invoice) {
   console.log('Payment succeeded:', invoice.id);
-  // TODO: Send success email, update payment status, etc.
+  
+  try {
+    // Get subscription details
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    const userId = subscription.metadata?.userId;
+    
+    if (!userId) {
+      console.error('No userId found in subscription metadata for successful payment');
+      return;
+    }
+
+    // Get customer details
+    const customer = await stripe.customers.retrieve(invoice.customer as string) as Stripe.Customer;
+    
+    // Import email service
+    const { emailService } = await import('@/lib/email-service');
+    
+    // Determine plan name from price ID
+    let planName = 'Growth Plan';
+    const priceId = subscription.items.data[0]?.price.id;
+    if (priceId?.includes('transformation') || priceId === process.env.STRIPE_TRANSFORMATION_PLAN_MONTHLY_PRICE_ID || priceId === process.env.STRIPE_TRANSFORMATION_PLAN_YEARLY_PRICE_ID) {
+      planName = 'Transformation Plan';
+    } else if (priceId === process.env.STRIPE_GROWTH_PLAN_MONTHLY_PRICE_ID || priceId === process.env.STRIPE_GROWTH_PLAN_YEARLY_PRICE_ID) {
+      planName = 'Growth Plan';
+    }
+    
+    // Send payment success email
+    await emailService.sendPaymentSuccessEmail({
+      name: customer.name || 'Valued Customer',
+      email: customer.email!,
+      amount: invoice.amount_paid,
+      planName,
+      transactionId: invoice.id,
+    });
+
+    // Update user profile with new subscription status
+    try {
+      const { updateUserSubscription } = await import('@/lib/subscription');
+      await updateUserSubscription(userId, {
+        tier: planName === 'Transformation Plan' ? 'Transformation' : 'Growth',
+        subscriptionStatus: 'active',
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        updatedAt: new Date()
+      });
+    } catch (updateError) {
+      console.error('Failed to update user subscription in Firebase:', updateError);
+    }
+
+    console.log(`Sent payment success email for user ${userId}, invoice ${invoice.id}`);
+    
+  } catch (error) {
+    console.error('Error handling successful payment:', error);
+  }
 }
 
 async function handleFailedPayment(invoice: Stripe.Invoice) {
   console.log('Payment failed:', invoice.id);
-  // TODO: Send failed payment email, handle retry logic, etc.
+  
+  try {
+    // Get subscription details
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    const userId = subscription.metadata?.userId;
+    
+    if (!userId) {
+      console.error('No userId found in subscription metadata for failed payment');
+      return;
+    }
+
+    // Get customer details
+    const customer = await stripe.customers.retrieve(invoice.customer as string) as Stripe.Customer;
+    
+    // Import email service
+    const { emailService } = await import('@/lib/email-service');
+    
+    // Determine plan name from price ID
+    let planName = 'Growth Plan';
+    if (subscription.items.data[0]?.price.id?.includes('transformation')) {
+      planName = 'Transformation Plan';
+    }
+    
+    // Send payment failed email
+    await emailService.sendPaymentFailedEmail({
+      name: customer.name || 'Valued Customer',
+      email: customer.email!,
+      amount: invoice.amount_due,
+      planName,
+      transactionId: invoice.id,
+    });
+
+    console.log(`Sent payment failed email for user ${userId}, invoice ${invoice.id}`);
+    
+  } catch (error) {
+    console.error('Error handling failed payment:', error);
+  }
 }
