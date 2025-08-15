@@ -17,7 +17,7 @@ export class SimpleNotificationManager {
         email: data.userEmail,
         sessionTime: data.sessionTime,
         meetingLink: data.meetingLink || '',
-        confirmationId: data.sessionId || 'N/A'
+        confirmationId: 'SOS-' + Date.now()
       };
       const success = await emailService.sendSOSConfirmation(bookingData);
       return success;
