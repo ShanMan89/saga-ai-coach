@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Loader2, Bot, BookText, Users, MessageSquarePlus, Zap, CreditCard, Percent, BarChart, Sparkles, CalendarClock } from "lucide-react";
+import { Edit, Loader2, Bot, BookText, Users, MessageSquarePlus, Zap, CreditCard, /* Percent, */ BarChart, Sparkles, /* CalendarClock */ } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ import { updateUserProfile } from "@/services/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createCheckoutSession } from "@/ai/flows/stripe";
 import { loadStripe } from '@stripe/stripe-js';
-import { UserAppointments } from "@/components/appointments/user-appointments";
+// import { UserAppointments } from "@/components/appointments/user-appointments"; // Disabled - SOS sessions being planned
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -177,7 +177,7 @@ export function ProfileUI() {
           </CardFooter>
         </Card>
 
-        <UserAppointments />
+        {/* <UserAppointments /> - Temporarily disabled while SOS sessions are being planned */}
       </div>
 
       <div className="space-y-8">
@@ -221,8 +221,8 @@ export function ProfileUI() {
                     {icon: Zap, text: "All Growth features"},
                     {icon: Sparkles, text: "AI Session Prep & Debrief"},
                     {icon: BarChart, text: "Proactive AI Insights"},
-                    {icon: CalendarClock, text: "Priority Booking"},
-                    {icon: Percent, text: "10% Discount on SOS Sessions"},
+                    // {icon: CalendarClock, text: "Priority Booking"}, // Disabled - SOS sessions being planned
+                    // {icon: Percent, text: "10% Discount on SOS Sessions"}, // Disabled - SOS sessions being planned
                 ]}
                 currentTier={profile.subscriptionTier}
                 onUpgrade={() => {}}

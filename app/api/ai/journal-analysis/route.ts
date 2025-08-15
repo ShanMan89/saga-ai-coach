@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.split('Bearer ')[1];
     if (!authAdmin) {
+      console.error('Firebase Admin not initialized - check environment variables');
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'Server configuration error: Firebase Admin not initialized' },
         { status: 500 }
       );
     }

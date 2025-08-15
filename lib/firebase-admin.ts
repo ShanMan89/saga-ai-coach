@@ -56,15 +56,11 @@ if (!admin.apps.length && typeof window === 'undefined') {
           credential: admin.credential.cert(serviceAccount),
           databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
         });
-      } else if (process.env.NODE_ENV === 'production') {
-        // In production, try to use application default credentials
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-          databaseURL: `https://${process.env.GCLOUD_PROJECT || 'saga-ai-coach'}.firebaseio.com`,
-        });
       } else {
-        // Development mode without credentials - skip initialization
-        console.warn('Firebase Admin not initialized: Missing service account credentials');
+        // Missing credentials - this will cause API failures
+        console.error('Firebase Admin not initialized: Missing service account credentials');
+        console.error('Required env vars: FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL');
+        console.error('Or: FIREBASE_SERVICE_ACCOUNT_JSON');
       }
     }
   } catch (error) {
