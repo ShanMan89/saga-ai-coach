@@ -60,14 +60,23 @@ const bookSOSSessionFlow = ai.defineFlow(
                 try {
                     const sessionDate = new Date(input.slot);
                     
-                    // Get appointment details including meeting link
+                    // Create meeting link for the appointment
                     let meetingLink: string | undefined;
                     try {
-                        const { getAppointmentById } = await import('@/services/firestore-admin');
-                        const appointment = await getAppointmentById(appointmentId);
-                        meetingLink = appointment?.meetLink;
+                        const { meetingService } = await import('@/lib/video/meeting-service');
+                        const meeting = await meetingService.createMeetingForAppointment(
+                            appointmentId,
+                            input.slot,
+                            60, // 60 minute session
+                            undefined, // Host email - could be admin email
+                            input.userProfile.email || undefined,
+                            input.userProfile.name
+                        );
+                        meetingLink = meeting.joinUrl;
+                        console.log('Meeting created for appointment:', appointmentId);
                     } catch (error) {
-                        console.error('Failed to get appointment details:', error);
+                        console.error('Failed to create meeting link:', error);
+                        // Continue with booking even if meeting creation fails
                     }
                     
                     await sendSOSConfirmation({

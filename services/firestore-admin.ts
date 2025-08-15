@@ -111,23 +111,8 @@ export const bookAppointment = async (slot: string, userProfile: UserProfile): P
     // to ensure they happen together or not at all.
     await bookAdminSlot(slot, userProfile);
 
-    // Create meeting link for the appointment
+    // Meeting link will be created separately to avoid dependency issues
     let meetLink: string | undefined;
-    try {
-        const { meetingService } = await import('@/lib/video/meeting-service');
-        const meeting = await meetingService.createMeetingForAppointment(
-            `temp-${Date.now()}`, // Temporary ID, will be replaced with actual appointment ID
-            slot,
-            60, // 60 minute session
-            undefined, // Host email - could be admin email
-            userProfile.email || undefined,
-            userProfile.name
-        );
-        meetLink = meeting.joinUrl;
-    } catch (error) {
-        console.error('Failed to create meeting link:', error);
-        // Continue with booking even if meeting creation fails
-    }
 
     const appointmentData: Omit<Appointment, 'id'> = {
         userId: userProfile.uid,
@@ -140,15 +125,8 @@ export const bookAppointment = async (slot: string, userProfile: UserProfile): P
     
     const docRef = await firestoreAdmin.collection('appointments').add(appointmentData);
     
-    // Update the meeting with the actual appointment ID if we created one
-    if (meetLink) {
-        try {
-            // In a more sophisticated implementation, we'd store the meeting ID and update it
-            console.log('Meeting created for appointment:', docRef.id);
-        } catch (error) {
-            console.error('Failed to update meeting with appointment ID:', error);
-        }
-    }
+    // Note: Meeting link creation will need to be handled separately 
+    // to avoid importing googleapis in this module
     
     // Schedule reminders for the appointment
     try {
