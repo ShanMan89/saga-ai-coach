@@ -79,6 +79,24 @@ const nextConfig = {
     ];
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Handle WASM files
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Add rule for WASM files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'webassembly/async',
+    });
+
+    // Exclude problematic WASM files from bundling
+    config.externals = config.externals || [];
+    if (!isServer) {
+      config.externals.push('farmhash-modern');
+    }
+
     // Fix for undici module compatibility
     if (!isServer) {
       config.resolve.fallback = {
