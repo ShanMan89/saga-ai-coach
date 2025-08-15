@@ -313,7 +313,7 @@ export const cacheInvalidation = {
   invalidatePattern(pattern: string) {
     // This is a simple implementation - in production you might want more sophisticated pattern matching
     const keys = Array.from((globalCache as any).cache.keys());
-    keys.forEach(key => {
+    keys.forEach((key: string) => {
       if (key.includes(pattern)) {
         globalCache.delete(key);
       }
