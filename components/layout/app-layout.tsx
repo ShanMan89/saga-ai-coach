@@ -45,7 +45,7 @@ export default function AppLayout({
     { href: "/chat", label: "Saga AI", icon: Bot },
     { href: "/journal", label: "Journal", icon: BookText },
     { href: "/community", label: "Community", icon: Users },
-    { href: "/sos", label: "SOS Session", icon: MessageSquareHeart },
+    // { href: "/sos", label: "SOS Session", icon: MessageSquareHeart }, // Temporarily disabled
   ];
   
   const adminMenuItems = [

@@ -19,6 +19,16 @@ const sosBookingSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // SOS sessions are temporarily disabled
+  return NextResponse.json(
+    { 
+      error: 'SOS sessions temporarily unavailable',
+      message: 'SOS sessions are currently disabled while we improve the experience. Please check back soon!'
+    },
+    { status: 503 }
+  );
+
+  /* DISABLED FOR NOW - PLANNING NEEDED
   try {
     // Verify authentication
     const authHeader = request.headers.get('Authorization');
@@ -227,4 +237,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
 }

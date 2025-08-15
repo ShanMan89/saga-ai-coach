@@ -146,6 +146,7 @@ export function ChatUI() {
     }
   }, [messages]);
 
+  /* SOS BOOKING DISABLED
   const handleBookSession = async (slot: string) => {
     if (!user || !profile) return;
 
@@ -192,6 +193,7 @@ export function ChatUI() {
       });
     }
   };
+  */
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -253,12 +255,21 @@ export function ChatUI() {
                 )}
                 >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {/* SOS BOOKING TEMPORARILY DISABLED
                 {message.suggestions?.suggestSOSText && message.suggestions.availableSlots && message.suggestions.availableSlots.length > 0 && (
                     <SOSBookingCard
                     slots={message.suggestions.availableSlots}
                     onBook={handleBookSession}
                     formatSlot={formatSlot}
                     />
+                )}
+                */}
+                {message.suggestions?.suggestSOSText && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                            📱 SOS sessions are temporarily unavailable while we improve the experience. Check back soon!
+                        </p>
+                    </div>
                 )}
                 </div>
                 {message.role === "user" && (
@@ -340,6 +351,7 @@ export function ChatUI() {
   );
 }
 
+/* SOS BOOKING CARD DISABLED
 function SOSBookingCard({ slots, onBook, formatSlot }: { slots: string[], onBook: (slot: string) => Promise<void>, formatSlot: (slot: string) => string }) {
   const [selectedSlot, setSelectedSlot] = useState<string | undefined>();
   const [isBooking, setIsBooking] = useState(false);
@@ -390,3 +402,4 @@ function SOSBookingCard({ slots, onBook, formatSlot }: { slots: string[], onBook
     </Card>
   );
 }
+*/
