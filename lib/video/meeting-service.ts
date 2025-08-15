@@ -3,6 +3,8 @@
  * Handles integration with video conferencing platforms
  */
 
+import 'server-only';
+
 export interface MeetingDetails {
   meetingId: string;
   joinUrl: string;

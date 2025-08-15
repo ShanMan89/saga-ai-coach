@@ -91,10 +91,17 @@ const nextConfig = {
       type: 'webassembly/async',
     });
 
-    // Exclude problematic WASM files from bundling
+    // Exclude server-only modules from client bundle
     config.externals = config.externals || [];
     if (!isServer) {
-      config.externals.push('farmhash-modern');
+      config.externals.push(
+        'farmhash-modern',
+        'googleapis',
+        'googleapis-common',
+        'gaxios',
+        'node-fetch',
+        'fetch-blob'
+      );
     }
 
     // Fix for undici module compatibility
@@ -106,12 +113,26 @@ const nextConfig = {
         tls: false,
         crypto: false,
         undici: false,
+        'node:fs': false,
+        'node:https': false,
+        'node:http': false,
+        'node:net': false,
+        'node:path': false,
+        'node:url': false,
+        'node:util': false,
+        'node:stream': false,
+        'node:buffer': false,
       };
       
-      // Skip processing undici on client side
+      // Skip processing server-only modules on client side
       config.resolve.alias = {
         ...config.resolve.alias,
         undici: false,
+        googleapis: false,
+        'googleapis-common': false,
+        gaxios: false,
+        'node-fetch': false,
+        'fetch-blob': false,
       };
     }
 
