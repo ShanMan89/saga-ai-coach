@@ -36,8 +36,13 @@ export async function POST(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     if (!authAdmin) {
       console.error('Firebase Admin not initialized - check environment variables');
+      console.error('Required: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY');
       return NextResponse.json(
-        { error: 'Server configuration error: Firebase Admin not initialized' },
+        { 
+          error: 'Server configuration error: Firebase Admin not initialized',
+          details: 'Missing Firebase Admin service account credentials. Check Vercel environment variables.',
+          required: ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']
+        },
         { status: 500 }
       );
     }
