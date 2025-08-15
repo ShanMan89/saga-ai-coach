@@ -23,7 +23,11 @@
       "Bash(cp:*)",
       "Bash(mkdir:*)",
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx next:*)",
+      "Bash(node_modules\\.bin\\next.cmd build:*)",
+      "Bash(.node_modules.binnext.cmd build)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

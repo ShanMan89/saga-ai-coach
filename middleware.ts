@@ -118,10 +118,17 @@ async function applyAIRateLimit(request: NextRequest): Promise<NextResponse | nu
           const decodedToken = await authAdmin.verifyIdToken(token);
           userId = decodedToken.uid;
           
-          // Get user subscription tier from Firestore
-          const { getUserProfile } = await import('@/services/firestore-admin');
-          const userProfile = await getUserProfile(userId);
-          userTier = userProfile?.subscriptionTier || 'Explorer';
+          // Get user subscription tier from Firestore (server-side only)
+          try {
+            if (typeof window === 'undefined') {
+              const { getUserProfile } = await import('@/services/firestore-admin');
+              const userProfile = await getUserProfile(userId);
+              userTier = userProfile?.subscriptionTier || 'Explorer';
+            }
+          } catch (firestoreError) {
+            console.warn('Failed to get user tier from Firestore:', firestoreError);
+            // Fall back to default tier
+          }
         } catch (tokenError) {
           console.warn('Failed to decode token for rate limiting:', tokenError);
         }
