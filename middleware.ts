@@ -29,21 +29,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Check for admin API routes
+  // Admin API routes are protected at the API route level instead of middleware
+  // This is because Firebase Admin SDK is not compatible with Edge Runtime
   if (pathname.startsWith('/api/admin')) {
-    try {
-      const { requireAdminAccess } = await import('@/lib/admin-auth');
-      const adminCheck = await requireAdminAccess(request);
-      if (adminCheck) {
-        return adminCheck; // Return error response if not admin
-      }
-    } catch (error) {
-      console.error('Admin middleware error:', error);
-      return new NextResponse(
-        JSON.stringify({ error: 'Authorization check failed' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Admin auth check will be handled within each admin API route
+    console.log('Admin API route accessed - auth check deferred to API route');
   }
 
   // AI routes have additional rate limiting based on subscription tier
@@ -105,37 +95,18 @@ async function applyAIRateLimit(request: NextRequest): Promise<NextResponse | nu
   let userId: string | null = null;
   let userTier: string = 'Explorer';
   
-  // Get user info from Authorization header if present
+  // Skip user-specific rate limiting in middleware due to Edge Runtime limitations
+  // Firebase Admin SDK is not compatible with Edge Runtime
+  // For now, use IP-based rate limiting only
   try {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split('Bearer ')[1];
-      
-      // Import Firebase Admin to decode token
-      const { authAdmin } = await import('@/lib/firebase-admin');
-      if (authAdmin) {
-        try {
-          const decodedToken = await authAdmin.verifyIdToken(token);
-          userId = decodedToken.uid;
-          
-          // Get user subscription tier from Firestore (server-side only)
-          try {
-            if (typeof window === 'undefined') {
-              const { getUserProfile } = await import('@/services/firestore-admin');
-              const userProfile = await getUserProfile(userId);
-              userTier = userProfile?.subscriptionTier || 'Explorer';
-            }
-          } catch (firestoreError) {
-            console.warn('Failed to get user tier from Firestore:', firestoreError);
-            // Fall back to default tier
-          }
-        } catch (tokenError) {
-          console.warn('Failed to decode token for rate limiting:', tokenError);
-        }
-      }
+      // We have a token but can't decode it in Edge Runtime
+      // This is OK - we'll fall back to IP-based rate limiting
+      console.log('Using IP-based rate limiting (Edge Runtime limitation)');
     }
   } catch (error) {
-    console.warn('Error getting user info for rate limiting:', error);
+    console.warn('Error in middleware auth check:', error);
   }
   
   // Set limits based on subscription tier
